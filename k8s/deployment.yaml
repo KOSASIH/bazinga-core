@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bazinga-stablecoin
+spec:
+  replicas: 10  # Hyper-scale
+  template:
+    spec:
+      containers:
+      - name: api
+        image: kosasih/bazinga-core:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: WEB3_PROVIDER
+          value: "https://mainnet.infura.io/v3/YOUR_KEY"
