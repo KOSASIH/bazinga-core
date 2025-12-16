@@ -12,3 +12,5 @@ qiskit-aer==0.13.3  # For quantum simulation
 qiskit-machine-learning==0.7.1  # For hybrid quantum-classical models
 requests==2.31.0  # For API calls to price feeds
 pandas==2.1.4     # For data processing
+slither-analyzer==0.10.0  # For Solidity smart contract auditing
+bandit==1.7.6            # For Python code security scans
