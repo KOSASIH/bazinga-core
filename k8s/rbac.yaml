@@ -1,0 +1,20 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: stablecoin-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "secrets"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: stablecoin-binding
+subjects:
+- kind: ServiceAccount
+  name: stablecoin-sa
+roleRef:
+  kind: Role
+  name: stablecoin-role
+  apiGroup: rbac.authorization.k8s.io
