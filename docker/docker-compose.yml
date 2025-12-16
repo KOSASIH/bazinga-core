@@ -1,0 +1,50 @@
+version: '3.8'
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - WEB3_PROVIDER=https://mainnet.infura.io/v3/YOUR_KEY
+      - QUANTUM_SIMULATOR=true  # Enable quantum fallback
+    volumes:
+      - ../models:/app/models  # Mount AI models
+    depends_on:
+      - oracle
+      - blockchain
+    networks:
+      - stablecoin-net
+
+  oracle:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.oracle  # Separate for oracle-specific
+    environment:
+      - SOURCES=https://api.coingecko.com/api/v3/simple/price
+    networks:
+      - stablecoin-net
+
+  blockchain:
+    image: ethereum/client-go:latest  # For local testnet
+    ports:
+      - "8545:8545"
+    networks:
+      - stablecoin-net
+
+  auditor:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.audit  # For security audits
+    command: python src/security/audit.py
+    networks:
+      - stablecoin-net
+
+networks:
+  stablecoin-net:
+    driver: bridge
+
+volumes:
+  models:
+    driver: local
