@@ -1,0 +1,25 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: stablecoin-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: bazinga-stablecoin-api
+  minReplicas: 3
+  maxReplicas: 100  # Hyper-scale
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Pods
+    pods:
+      metric:
+        name: packets-per-second  # Custom metric for tx load
+      target:
+        type: AverageValue
+        averageValue: 1000  # Scale on high traffic
