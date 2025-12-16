@@ -142,4 +142,3 @@ if __name__ == "__main__":
     # Predict and suggest
     suggestion = stabilizer.suggest_stabilization(1.05)  # Slightly above peg
     print(suggestion)
-
