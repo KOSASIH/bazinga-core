@@ -1,16 +1,63 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: bazinga-stablecoin
+  name: bazinga-stablecoin-api
+  labels:
+    app: stablecoin
 spec:
-  replicas: 10  # Hyper-scale
+  replicas: 3  # Hyper-scale with auto-scaling
+  selector:
+    matchLabels:
+      app: stablecoin
   template:
+    metadata:
+      labels:
+        app: stablecoin
     spec:
       containers:
       - name: api
-        image: kosasih/bazinga-core:latest
+        image: kosasih/bazinga-core:latest  # From Docker build
         ports:
         - containerPort: 8000
         env:
         - name: WEB3_PROVIDER
-          value: "https://mainnet.infura.io/v3/YOUR_KEY"
+          valueFrom:
+            secretKeyRef:
+              name: stablecoin-secrets
+              key: web3-provider
+        - name: QUANTUM_ENABLED
+          value: "true"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1"  # Allocate for quantum processing
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      # AI model sidecar for quantum optimization
+      - name: ai-sidecar
+        image: kosasih/bazinga-ai:latest
+        resources:
+          requests:
+            nvidia.com/gpu: 1  # GPU for quantum circuits
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: accelerator
+                operator: In
+                values:
+                - nvidia-tesla-k80  # Quantum-friendly GPUs
