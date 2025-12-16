@@ -1,0 +1,103 @@
+name: Hyper-Tech Stablecoin CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pytest pytest-cov  # For testing
+
+    - name: Run Python tests
+      run: |
+        pytest tests/ --cov=src/ --cov-report=xml --tb=short
+      env:
+        WEB3_PROVIDER: http://localhost:8545  # Mock for tests
+
+    - name: Run security audit
+      run: python src/security/audit.py
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/Dockerfile
+        push: true
+        tags: kosasih/bazinga-core:latest
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'  # Only deploy on main branch
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Configure kubectl for Minikube (simulation)
+      run: |
+        # For real deployment, replace with your K8s cluster config
+        kubectl config set-cluster test-cluster --server=https://127.0.0.1:6443 --insecure-skip-tls-verify=true
+        kubectl config set-credentials test-user --token=${{ secrets.K8S_TOKEN }}
+        kubectl config set-context test-context --cluster=test-cluster --user=test-user
+        kubectl config use-context test-context
+
+    - name: Deploy to Kubernetes
+      run: |
+        kubectl apply -f k8s/
+        kubectl rollout status deployment/bazinga-stablecoin-api
+
+    - name: Run post-deployment tests
+      run: |
+        # Simple smoke test
+        kubectl port-forward svc/stablecoin-service 8080:80 &
+        sleep 10
+        curl http://localhost:8080/ || exit 1
