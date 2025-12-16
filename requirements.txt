@@ -12,4 +12,3 @@ qiskit-aer==0.13.3  # For quantum simulation
 qiskit-machine-learning==0.7.1  # For hybrid quantum-classical models
 requests==2.31.0  # For API calls to price feeds
 pandas==2.1.4     # For data processing
-web3==6.15.0      # Already added, for blockchain integration
