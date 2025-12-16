@@ -15,4 +15,3 @@ pandas==2.1.4     # For data processing
 slither-analyzer==0.10.0  # For Solidity smart contract auditing
 bandit==1.7.6            # For Python code security scans
 qiskit-ibm-runtime==0.15.0  # For IBM Quantum access
-
