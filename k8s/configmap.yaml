@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stablecoin-config
+data:
+  ai-model-path: "/app/models/hybrid_stabilizer.pkl"
+  oracle-sources: "https://api.coingecko.com/api/v3/simple/price"
