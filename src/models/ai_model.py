@@ -7,18 +7,40 @@ from qiskit_aer import AerSimulator
 from qiskit_machine_learning.algorithms import VQC  # Variational Quantum Classifier for hybrid optimization
 from qiskit_machine_learning.circuits import QuantumCircuitLibrary
 from qiskit.primitives import Sampler
+from qiskit_ibm_runtime import QiskitRuntimeService, Sampler as RuntimeSampler  # For real quantum hardware
 import joblib  # For saving/loading models
+import os  # For environment variables
 
 # Configure logging for production monitoring
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class QuantumAIStabilizer:
-    def __init__(self, model_path: str = "models/hybrid_stabilizer.pkl", use_quantum: bool = True):
+    def __init__(self, model_path: str = "models/hybrid_stabilizer.pkl", use_quantum: bool = True, quantum_backend: str = "ibmq_qasm_simulator"):
         self.model_path = model_path
         self.use_quantum = use_quantum
+        self.quantum_backend = quantum_backend  # e.g., "ibm_kyoto" for real hardware
         self.classical_model = None
         self.quantum_optimizer = None
+        self.service = None
+        self.sampler = None
+        if self.use_quantum:
+            self._initialize_quantum_service()
         self._load_or_build_model()
+
+    def _initialize_quantum_service(self):
+        """Initialize IBM Quantum service for hardware access."""
+        token = os.getenv("IBM_QUANTUM_TOKEN")
+        if not token:
+            logging.warning("IBM_QUANTUM_TOKEN not set; falling back to simulator.")
+            self.quantum_backend = "ibmq_qasm_simulator"  # Free simulator
+        try:
+            self.service = QiskitRuntimeService(channel="ibm_quantum", token=token)
+            backend = self.service.backend(self.quantum_backend)
+            self.sampler = RuntimeSampler(backend)
+            logging.info(f"Connected to quantum backend: {self.quantum_backend}")
+        except Exception as e:
+            logging.error(f"Failed to initialize quantum service: {e}. Using simulator fallback.")
+            self.sampler = Sampler()  # Fallback to local simulator
 
     def _load_or_build_model(self):
         try:
@@ -46,9 +68,8 @@ class QuantumAIStabilizer:
         num_qubits = 4  # Adjustable for complexity
         feature_map = QuantumCircuitLibrary.ZZFeatureMap(num_qubits)
         ansatz = QuantumCircuitLibrary.RealAmplitudes(num_qubits)
-        sampler = Sampler()
         self.quantum_optimizer = VQC(
-            sampler=sampler,
+            sampler=self.sampler,  # Now uses real hardware or runtime
             feature_map=feature_map,
             ansatz=ansatz,
             optimizer=None  # Use classical optimizer for hybrid
@@ -61,7 +82,6 @@ class QuantumAIStabilizer:
         
         if self.use_quantum:
             # Hybrid training: Use quantum for fine-tuning predictions
-            # Simulate quantum-enhanced optimization (e.g., for volatility thresholds)
             quantum_features = self._encode_for_quantum(X_train[:100])  # Subset for quantum
             self.quantum_optimizer.fit(quantum_features, y_train[:100])
             logging.info("Quantum optimizer fine-tuned.")
@@ -72,9 +92,15 @@ class QuantumAIStabilizer:
         
         if self.use_quantum:
             quantum_input = self._encode_for_quantum(data)
-            quantum_adjustment = self.quantum_optimizer.predict(quantum_input)[0]
-            # Hybrid fusion: Weighted average for hyper-accuracy
-            final_pred = 0.7 * classical_pred + 0.3 * quantum_adjustment
+            try:
+                # Submit job to quantum hardware/runtime (asynchronous in production)
+                job = self.quantum_optimizer.predict(quantum_input)
+                quantum_adjustment = job.result()[0] if hasattr(job, 'result') else job[0]  # Handle runtime response
+                # Hybrid fusion: Weighted average for hyper-accuracy
+                final_pred = 0.7 * classical_pred + 0.3 * quantum_adjustment
+            except Exception as e:
+                logging.warning(f"Quantum prediction failed: {e}. Using classical fallback.")
+                final_pred = classical_pred
         else:
             final_pred = classical_pred
         
@@ -107,7 +133,8 @@ class QuantumAIStabilizer:
 
 # Example usage (for testing)
 if __name__ == "__main__":
-    stabilizer = QuantumAIStabilizer()
+    # Set token via env: export IBM_QUANTUM_TOKEN=your_token_here
+    stabilizer = QuantumAIStabilizer(use_quantum=True, quantum_backend="ibmq_qasm_simulator")  # Use "ibm_kyoto" for real hardware
     # Train with dummy data
     X = np.random.rand(1000, 30)
     y = np.random.rand(1000)
