@@ -7,3 +7,6 @@ kubernetes==28.1.0
 tensorflow==2.15.0  # For AI stabilization models
 pytest==7.4.3
 black==23.11.0  # Code formatting
+qiskit==0.45.0
+qiskit-aer==0.13.3  # For quantum simulation
+qiskit-machine-learning==0.7.1  # For hybrid quantum-classical models
