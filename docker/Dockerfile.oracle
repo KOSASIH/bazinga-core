@@ -1,0 +1,6 @@
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY src/stablecoin/oracle.py ./src/stablecoin/
+CMD ["python", "-c", "from src.stablecoin.oracle import HyperTechOracle; oracle = HyperTechOracle(); print(oracle.fetch_price_feeds())"]
